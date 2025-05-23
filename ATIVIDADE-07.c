@@ -11,6 +11,7 @@
 
 
 SemaphoreHandle_t xSemContador;
+SemaphoreHandle_t xSemReset;
 TaskHandle_t xHandleEntrada = NULL;
 TaskHandle_t xHandleSaida = NULL;
 
@@ -56,7 +57,19 @@ void vTaskSaida(void *params)
     }
 }
 
-
+void vTaskReset(void *params)
+{
+    while(true)
+    {
+        if(xSemaphoreTake(xSemReset, portMAX_DELAY) == pdTRUE)
+        {
+            printf("Resetando contador\n");
+            vSemaphoreDelete(xSemContador);
+            xSemContador = xSemaphoreCreateCounting(MAX_PEOPLE, 0);
+            printf("Contador resetado\n");
+        }
+    }
+}
 
 void gpio_irq_handler(uint gpio, uint32_t events)
 {
@@ -69,9 +82,12 @@ void gpio_irq_handler(uint gpio, uint32_t events)
         if(gpio == BUTTON_A)
         {
             vTaskNotifyGiveFromISR(xHandleEntrada, &xHigherPriorityTaskWoken);
-        } else if (gpio = BUTTON_B)
+        } else if (gpio == BUTTON_B)
         {
             vTaskNotifyGiveFromISR(xHandleSaida, &xHigherPriorityTaskWoken);
+        } else if (gpio == BUTTON_JOYSTICK)
+        {
+            xSemaphoreGiveFromISR(xSemReset, &xHigherPriorityTaskWoken);
         }
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
         
@@ -91,13 +107,20 @@ int main()
     gpio_set_dir(BUTTON_B, GPIO_IN);
     gpio_pull_up(BUTTON_B);
 
+    gpio_init(BUTTON_JOYSTICK);
+    gpio_set_dir(BUTTON_JOYSTICK, GPIO_IN);
+    gpio_pull_up(BUTTON_JOYSTICK);
+
     gpio_set_irq_enabled_with_callback(BUTTON_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
     gpio_set_irq_enabled(BUTTON_B, GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_enabled(BUTTON_JOYSTICK, GPIO_IRQ_EDGE_FALL, true);
 
     xSemContador = xSemaphoreCreateCounting(MAX_PEOPLE, 0);
+    xSemReset = xSemaphoreCreateBinary();
 
     xTaskCreate(vTaskEntrada, "Entrada", 256, NULL, 1, NULL);
     xTaskCreate(vTaskSaida, "Saida", 256, NULL, 1, NULL);
+    xTaskCreate(vTaskReset, "Reset", 256, NULL, 1, NULL);
     vTaskStartScheduler();
     panic_unsupported();
 
