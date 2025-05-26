@@ -8,7 +8,9 @@
 #define BUTTON_A 5
 #define BUTTON_B 6
 #define BUTTON_JOYSTICK 22
-
+#define LED_RED 13
+#define LED_GREEN 11
+#define LED_BLUE 12
 
 SemaphoreHandle_t xSemContador;
 SemaphoreHandle_t xSemReset;
@@ -16,6 +18,38 @@ TaskHandle_t xHandleEntrada = NULL;
 TaskHandle_t xHandleSaida = NULL;
 
 static volatile uint32_t last_time = 0;
+
+typedef enum {
+    zero_usuarios, // Nenhum usuário logado  LED AZUL
+    usuarios_ativos, // Usuários ativos (de 0 a MAX-2) LED VERDE
+    ultima_vaga, // Última vaga (MAX-1) LED AMARELO
+    lotado // Capacidade máxima (MAX) LED VERMELHO
+} acess_state_t;
+
+void led_state(uint8_t count)
+{
+    if(count == 0)
+    {
+        gpio_put(LED_BLUE, 1);
+        gpio_put(LED_GREEN, 0);
+        gpio_put(LED_RED, 0);
+    } else if(count >= 1 && count <= (MAX_PEOPLE - 2))
+    {
+        gpio_put(LED_GREEN, 1);
+        gpio_put(LED_BLUE, 0);
+        gpio_put(LED_RED, 0);
+    } else if(count == (MAX_PEOPLE - 1)) {
+        gpio_put(LED_GREEN, 1);
+        gpio_put(LED_BLUE, 0);
+        gpio_put(LED_RED, 1);
+    } else if(count == MAX_PEOPLE)
+    {
+        gpio_put(LED_RED, 1);
+        gpio_put(LED_GREEN, 0);
+        gpio_put(LED_BLUE, 0);
+    } 
+}
+
 
 void vTaskEntrada(void *params)
 {
@@ -33,6 +67,7 @@ void vTaskEntrada(void *params)
         } else {
             printf("Contador cheio\n");
         }
+        led_state(uxSemaphoreGetCount(xSemContador));
         vTaskDelay(pdMS_TO_TICKS(300));
     }
 }
@@ -53,6 +88,7 @@ void vTaskSaida(void *params)
         } else {
             printf("Contador vazio\n");
         }
+        led_state(uxSemaphoreGetCount(xSemContador));
         vTaskDelay(pdMS_TO_TICKS(300));
     }
 }
@@ -67,6 +103,7 @@ void vTaskReset(void *params)
             vSemaphoreDelete(xSemContador);
             xSemContador = xSemaphoreCreateCounting(MAX_PEOPLE, 0);
             printf("Contador resetado\n");
+            led_state(uxSemaphoreGetCount(xSemContador));
         }
     }
 }
@@ -111,6 +148,18 @@ int main()
     gpio_set_dir(BUTTON_JOYSTICK, GPIO_IN);
     gpio_pull_up(BUTTON_JOYSTICK);
 
+    gpio_init(LED_RED);
+    gpio_set_dir(LED_RED, GPIO_OUT);
+    gpio_put(LED_RED, 0);
+
+    gpio_init(LED_GREEN);
+    gpio_set_dir(LED_GREEN, GPIO_OUT);
+    gpio_put(LED_GREEN, 0);
+
+    gpio_init(LED_BLUE);
+    gpio_set_dir(LED_BLUE, GPIO_OUT);
+    gpio_put(LED_BLUE, 1);
+
     gpio_set_irq_enabled_with_callback(BUTTON_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
     gpio_set_irq_enabled(BUTTON_B, GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(BUTTON_JOYSTICK, GPIO_IRQ_EDGE_FALL, true);
@@ -118,9 +167,9 @@ int main()
     xSemContador = xSemaphoreCreateCounting(MAX_PEOPLE, 0);
     xSemReset = xSemaphoreCreateBinary();
 
-    xTaskCreate(vTaskEntrada, "Entrada", 256, NULL, 1, NULL);
-    xTaskCreate(vTaskSaida, "Saida", 256, NULL, 1, NULL);
-    xTaskCreate(vTaskReset, "Reset", 256, NULL, 1, NULL);
+    xTaskCreate(vTaskEntrada, "Task Entrada", 256, NULL, 1, NULL);
+    xTaskCreate(vTaskSaida, "Task Saida", 256, NULL, 1, NULL);
+    xTaskCreate(vTaskReset, "Task Reset", 256, NULL, 1, NULL);
     vTaskStartScheduler();
     panic_unsupported();
 
