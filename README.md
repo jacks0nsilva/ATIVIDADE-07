@@ -72,7 +72,9 @@ Além disso, há controle de concorrência via mutex para acesso ao display OLED
 
 ### 2. Clone o repositório
 
+```
 git clone https://github.com/jacks0nsilva/ATIVIDADE-07.git
+```
 
 ### 3. Configure o caminho do FreeRTOS
 
@@ -90,3 +92,7 @@ git clone https://github.com/jacks0nsilva/ATIVIDADE-07.git
 - **Run [USB]** → instala o firmware na placa BitDogLab
 
 ---
+
+```
+
+```
