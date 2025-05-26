@@ -3,6 +3,7 @@
 #include "libs/include/leds.h"
 #include "libs/include/definicoes.h"
 
+// Inicializa os pinos dos LEDs
 void leds_init()
 {
     gpio_init(LED_RED);
@@ -19,7 +20,7 @@ void leds_init()
 
 }
 
-
+// Altera a cor do led com base no número de pessoas no elevador
 void led_state(uint8_t count)
 {
     if(count == 0)
