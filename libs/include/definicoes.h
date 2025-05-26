@@ -1,7 +1,7 @@
 #ifndef DEFINICOES_H
 #define DEFINICOES_H
 
-#define MAX_PEOPLE 8 // Número máximo de pessoas no elevador
+#define MAX_PEOPLE 6 // Número máximo de pessoas no elevador
 #define BUTTON_A 5 // Botão A
 #define BUTTON_B 6 // Botão B
 #define BUTTON_JOYSTICK 22 // Botão do Joystick

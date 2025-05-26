@@ -31,7 +31,7 @@ void draw_count(uint8_t count){
     ssd1306_hline(&ssd, 1, 126,24, true);
 
     ssd1306_draw_string(&ssd, "VAGAS: ",3,28);
-    ssd1306_draw_string(&ssd, "/8", 72, 28);
+    ssd1306_draw_string(&ssd, "/6", 72, 28);
     ssd1306_hline(&ssd, 1, 126, 40, true);
 
     ssd1306_draw_string(&ssd, "STATUS: ",3, 50);
