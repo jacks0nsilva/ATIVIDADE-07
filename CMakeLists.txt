@@ -32,6 +32,7 @@ add_executable(${PROJECT_NAME}
         libs/src/ssd1306.c # Biblioteca do display
         libs/src/display.c # Inicialização e manipulação do display
         libs/src/leds.c # Inicialização e manipulação dos LEDs
+        libs/src/buzzer.c # Inicialização e manipulação do buzzer
         )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR})  # Adiciona o diretório raiz como include privado apenas para o target atual
@@ -41,6 +42,7 @@ target_link_libraries(${PROJECT_NAME}
         FreeRTOS-Kernel 
         FreeRTOS-Kernel-Heap4
         hardware_i2c
+        hardware_pwm
         )
 
 pico_enable_stdio_usb(${PROJECT_NAME} 1)

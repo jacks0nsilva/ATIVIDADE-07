@@ -6,6 +6,7 @@
 #include "libs/include/definicoes.h"
 #include "libs/include/display.h"
 #include "libs/include/leds.h"
+#include "libs/include/buzzer.h"
 
 
 SemaphoreHandle_t xSemContador; // Semáforo para controlar número de pessoas
@@ -36,11 +37,12 @@ void vTaskEntrada(void *params)
             xSemaphoreTake(xMutexDisplay, portMAX_DELAY);
             draw_count(uxSemaphoreGetCount(xSemContador));
             xSemaphoreGive(xMutexDisplay);
-            printf("Contador: %d\n", contador);
+            printf("Contador: %d\n", uxSemaphoreGetCount(xSemContador));
         } else {
             printf("Elevador cheio\n");
         }
         led_state(uxSemaphoreGetCount(xSemContador));
+        buzzer_play(uxSemaphoreGetCount(xSemContador));
         vTaskDelay(pdMS_TO_TICKS(300));
     }
 }
@@ -86,6 +88,7 @@ void vTaskReset(void *params)
             draw_count(uxSemaphoreGetCount(xSemContador));
             xSemaphoreGive(xMutexDisplay);
             led_state(uxSemaphoreGetCount(xSemContador));
+            buzzer_play(uxSemaphoreGetCount(xSemContador));
         }
     }
 }
@@ -101,6 +104,7 @@ int main()
     leds_init();
     display_init();
     draw_count(0);
+    buzzer_init();
 
     // Interrupções dos botões
     gpio_set_irq_enabled_with_callback(BUTTON_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
