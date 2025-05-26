@@ -3,21 +3,20 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+#include "libs/include/ssd1306.h"
+#include "libs/include/definicoes.h"
 
-#define MAX_PEOPLE 8
-#define BUTTON_A 5
-#define BUTTON_B 6
-#define BUTTON_JOYSTICK 22
-#define LED_RED 13
-#define LED_GREEN 11
-#define LED_BLUE 12
 
 SemaphoreHandle_t xSemContador;
 SemaphoreHandle_t xSemReset;
+SemaphoreHandle_t xMutexDisplay;
 TaskHandle_t xHandleEntrada = NULL;
 TaskHandle_t xHandleSaida = NULL;
 
+ssd1306_t ssd;
+
 static volatile uint32_t last_time = 0;
+char quantidade_str[20] = "0";
 
 typedef enum {
     zero_usuarios, // Nenhum usuário logado  LED AZUL
@@ -63,6 +62,11 @@ void vTaskEntrada(void *params)
             xSemaphoreGive(xSemContador);
             printf("Incrementando contador, entrada registrada\n");
             uint8_t contador = uxSemaphoreGetCount(xSemContador);
+            xSemaphoreTake(xMutexDisplay, portMAX_DELAY);
+            sprintf(quantidade_str, "%d", contador);
+            ssd1306_draw_string(&ssd,quantidade_str,104,2);
+            ssd1306_send_data(&ssd);
+            xSemaphoreGive(xMutexDisplay);
             printf("Contador: %d\n", contador);
         } else {
             printf("Contador cheio\n");
@@ -85,6 +89,11 @@ void vTaskSaida(void *params)
             printf("Decrementando contador, saída registrada\n");
             uint8_t contador = uxSemaphoreGetCount(xSemContador);
             printf("Contador: %d\n", contador);
+            xSemaphoreTake(xMutexDisplay, portMAX_DELAY);
+            sprintf(quantidade_str, "%d", contador);
+            ssd1306_draw_string(&ssd,quantidade_str,104,2);
+            ssd1306_send_data(&ssd);
+            xSemaphoreGive(xMutexDisplay);
         } else {
             printf("Contador vazio\n");
         }
@@ -160,12 +169,31 @@ int main()
     gpio_set_dir(LED_BLUE, GPIO_OUT);
     gpio_put(LED_BLUE, 1);
 
+    // Inicialização da comunicação I2C
+    i2c_init(I2C_PORT, 400 * 1000);
+    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SDA);
+    gpio_pull_up(I2C_SCL);
+
+    // Inicialização do display e configuração
+    ssd1306_init(&ssd, WIDTH, HEIGHT, false, ADRESS, I2C_PORT);
+    ssd1306_config(&ssd);
+    ssd1306_fill(&ssd, false);
+    
+
+    ssd1306_rect(&ssd,0,0, WIDTH, HEIGHT, true, false);
+    ssd1306_draw_string(&ssd, "QUANTIDADE: ",2, 2);
+    ssd1306_draw_string(&ssd,quantidade_str,104,2);
+    ssd1306_send_data(&ssd);
+
     gpio_set_irq_enabled_with_callback(BUTTON_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
     gpio_set_irq_enabled(BUTTON_B, GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(BUTTON_JOYSTICK, GPIO_IRQ_EDGE_FALL, true);
 
     xSemContador = xSemaphoreCreateCounting(MAX_PEOPLE, 0);
     xSemReset = xSemaphoreCreateBinary();
+    xMutexDisplay = xSemaphoreCreateMutex();
 
     xTaskCreate(vTaskEntrada, "Task Entrada", 256, NULL, 1, NULL);
     xTaskCreate(vTaskSaida, "Task Saida", 256, NULL, 1, NULL);
