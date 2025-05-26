@@ -3,8 +3,8 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
-#include "libs/include/ssd1306.h"
 #include "libs/include/definicoes.h"
+#include "libs/include/display.h"
 
 
 SemaphoreHandle_t xSemContador;
@@ -13,17 +13,8 @@ SemaphoreHandle_t xMutexDisplay;
 TaskHandle_t xHandleEntrada = NULL;
 TaskHandle_t xHandleSaida = NULL;
 
-ssd1306_t ssd;
 
 static volatile uint32_t last_time = 0;
-char quantidade_str[20] = "0";
-
-typedef enum {
-    zero_usuarios, // Nenhum usuário logado  LED AZUL
-    usuarios_ativos, // Usuários ativos (de 0 a MAX-2) LED VERDE
-    ultima_vaga, // Última vaga (MAX-1) LED AMARELO
-    lotado // Capacidade máxima (MAX) LED VERMELHO
-} acess_state_t;
 
 void led_state(uint8_t count)
 {
@@ -49,7 +40,6 @@ void led_state(uint8_t count)
     } 
 }
 
-
 void vTaskEntrada(void *params)
 {
     xHandleEntrada = xTaskGetCurrentTaskHandle();
@@ -60,16 +50,14 @@ void vTaskEntrada(void *params)
         if(uxSemaphoreGetCount(xSemContador) < MAX_PEOPLE)
         {
             xSemaphoreGive(xSemContador);
-            printf("Incrementando contador, entrada registrada\n");
+            printf("Entrada registrada\n");
             uint8_t contador = uxSemaphoreGetCount(xSemContador);
             xSemaphoreTake(xMutexDisplay, portMAX_DELAY);
-            sprintf(quantidade_str, "%d", contador);
-            ssd1306_draw_string(&ssd,quantidade_str,104,2);
-            ssd1306_send_data(&ssd);
+            draw_count(uxSemaphoreGetCount(xSemContador));
             xSemaphoreGive(xMutexDisplay);
             printf("Contador: %d\n", contador);
         } else {
-            printf("Contador cheio\n");
+            printf("Elevador cheio\n");
         }
         led_state(uxSemaphoreGetCount(xSemContador));
         vTaskDelay(pdMS_TO_TICKS(300));
@@ -86,16 +74,14 @@ void vTaskSaida(void *params)
         if(uxSemaphoreGetCount(xSemContador) > 0)
         {
             xSemaphoreTake(xSemContador, portMAX_DELAY);
-            printf("Decrementando contador, saída registrada\n");
+            printf("Saída registrada\n");
             uint8_t contador = uxSemaphoreGetCount(xSemContador);
             printf("Contador: %d\n", contador);
             xSemaphoreTake(xMutexDisplay, portMAX_DELAY);
-            sprintf(quantidade_str, "%d", contador);
-            ssd1306_draw_string(&ssd,quantidade_str,104,2);
-            ssd1306_send_data(&ssd);
+            draw_count(uxSemaphoreGetCount(xSemContador));
             xSemaphoreGive(xMutexDisplay);
         } else {
-            printf("Contador vazio\n");
+            printf("Elevador vazio\n");
         }
         led_state(uxSemaphoreGetCount(xSemContador));
         vTaskDelay(pdMS_TO_TICKS(300));
@@ -112,6 +98,9 @@ void vTaskReset(void *params)
             vSemaphoreDelete(xSemContador);
             xSemContador = xSemaphoreCreateCounting(MAX_PEOPLE, 0);
             printf("Contador resetado\n");
+            xSemaphoreTake(xMutexDisplay, portMAX_DELAY);
+            draw_count(uxSemaphoreGetCount(xSemContador));
+            xSemaphoreGive(xMutexDisplay);
             led_state(uxSemaphoreGetCount(xSemContador));
         }
     }
@@ -169,23 +158,7 @@ int main()
     gpio_set_dir(LED_BLUE, GPIO_OUT);
     gpio_put(LED_BLUE, 1);
 
-    // Inicialização da comunicação I2C
-    i2c_init(I2C_PORT, 400 * 1000);
-    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
-    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
-    gpio_pull_up(I2C_SDA);
-    gpio_pull_up(I2C_SCL);
-
-    // Inicialização do display e configuração
-    ssd1306_init(&ssd, WIDTH, HEIGHT, false, ADRESS, I2C_PORT);
-    ssd1306_config(&ssd);
-    ssd1306_fill(&ssd, false);
-    
-
-    ssd1306_rect(&ssd,0,0, WIDTH, HEIGHT, true, false);
-    ssd1306_draw_string(&ssd, "QUANTIDADE: ",2, 2);
-    ssd1306_draw_string(&ssd,quantidade_str,104,2);
-    ssd1306_send_data(&ssd);
+    display_init();
 
     gpio_set_irq_enabled_with_callback(BUTTON_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
     gpio_set_irq_enabled(BUTTON_B, GPIO_IRQ_EDGE_FALL, true);

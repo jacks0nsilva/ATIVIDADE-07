@@ -30,6 +30,7 @@ include_directories(${CMAKE_SOURCE_DIR}/libs/include) # Adiciona o diretório 'l
 add_executable(${PROJECT_NAME}  
         ATIVIDADE-07.c # Código principal em C
         libs/src/ssd1306.c # Biblioteca do display
+        libs/src/display.c 
         )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR})  # Adiciona o diretório raiz como include privado apenas para o target atual
