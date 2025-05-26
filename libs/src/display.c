@@ -17,19 +17,6 @@ void display_init(){
         ssd1306_init(&ssd, WIDTH, HEIGHT, false, ADRESS, I2C_PORT);
         ssd1306_config(&ssd);
         ssd1306_fill(&ssd, false);
-
-        ssd1306_rect(&ssd,0,0, WIDTH, HEIGHT, true, false);
-        ssd1306_draw_string(&ssd, "ACESSO",30, 3);
-        ssd1306_draw_string(&ssd, "ELEVADOR", 30, 14);
-        ssd1306_hline(&ssd, 1, 126,24, true);
-
-        ssd1306_draw_string(&ssd, "VAGAS: ",3,28);
-        ssd1306_draw_string(&ssd, "0", 64, 28);
-        ssd1306_draw_string(&ssd, "/8", 72, 28);
-        ssd1306_hline(&ssd, 1, 126, 40, true);
-
-        ssd1306_draw_string(&ssd, "STATUS: ",3, 50);
-        ssd1306_draw_string(&ssd, "LIVRE", 72, 50);
         ssd1306_send_data(&ssd);
 }
 

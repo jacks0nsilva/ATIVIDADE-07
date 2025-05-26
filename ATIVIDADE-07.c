@@ -5,6 +5,7 @@
 #include "semphr.h"
 #include "libs/include/definicoes.h"
 #include "libs/include/display.h"
+#include "libs/include/leds.h"
 
 
 SemaphoreHandle_t xSemContador;
@@ -14,31 +15,10 @@ TaskHandle_t xHandleEntrada = NULL;
 TaskHandle_t xHandleSaida = NULL;
 
 
-static volatile uint32_t last_time = 0;
+void buttons_init();
+void gpio_irq_handler(uint gpio, uint32_t events);
 
-void led_state(uint8_t count)
-{
-    if(count == 0)
-    {
-        gpio_put(LED_BLUE, 1);
-        gpio_put(LED_GREEN, 0);
-        gpio_put(LED_RED, 0);
-    } else if(count >= 1 && count <= (MAX_PEOPLE - 2))
-    {
-        gpio_put(LED_GREEN, 1);
-        gpio_put(LED_BLUE, 0);
-        gpio_put(LED_RED, 0);
-    } else if(count == (MAX_PEOPLE - 1)) {
-        gpio_put(LED_GREEN, 1);
-        gpio_put(LED_BLUE, 0);
-        gpio_put(LED_RED, 1);
-    } else if(count == MAX_PEOPLE)
-    {
-        gpio_put(LED_RED, 1);
-        gpio_put(LED_GREEN, 0);
-        gpio_put(LED_BLUE, 0);
-    } 
-}
+static volatile uint32_t last_time = 0;
 
 void vTaskEntrada(void *params)
 {
@@ -106,6 +86,49 @@ void vTaskReset(void *params)
     }
 }
 
+
+int main()
+{
+
+    stdio_init_all();
+    
+
+    buttons_init();
+    leds_init();
+    display_init();
+    draw_count(0);
+
+    gpio_set_irq_enabled_with_callback(BUTTON_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
+    gpio_set_irq_enabled(BUTTON_B, GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_enabled(BUTTON_JOYSTICK, GPIO_IRQ_EDGE_FALL, true);
+
+    xSemContador = xSemaphoreCreateCounting(MAX_PEOPLE, 0);
+    xSemReset = xSemaphoreCreateBinary();
+    xMutexDisplay = xSemaphoreCreateMutex();
+
+    xTaskCreate(vTaskEntrada, "Task Entrada", 256, NULL, 1, NULL);
+    xTaskCreate(vTaskSaida, "Task Saida", 256, NULL, 1, NULL);
+    xTaskCreate(vTaskReset, "Task Reset", 256, NULL, 1, NULL);
+    vTaskStartScheduler();
+    panic_unsupported();
+
+}
+
+void buttons_init()
+{
+    gpio_init(BUTTON_A);
+    gpio_set_dir(BUTTON_A, GPIO_IN);
+    gpio_pull_up(BUTTON_A);
+
+    gpio_init(BUTTON_B);
+    gpio_set_dir(BUTTON_B, GPIO_IN);
+    gpio_pull_up(BUTTON_B);
+
+    gpio_init(BUTTON_JOYSTICK);
+    gpio_set_dir(BUTTON_JOYSTICK, GPIO_IN);
+    gpio_pull_up(BUTTON_JOYSTICK);
+}
+
 void gpio_irq_handler(uint gpio, uint32_t events)
 {
     uint32_t current_time = to_us_since_boot(get_absolute_time());
@@ -127,51 +150,4 @@ void gpio_irq_handler(uint gpio, uint32_t events)
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
         
     }
-}
-
-int main()
-{
-
-    stdio_init_all();
-    
-    gpio_init(BUTTON_A);
-    gpio_set_dir(BUTTON_A, GPIO_IN);
-    gpio_pull_up(BUTTON_A);
-
-    gpio_init(BUTTON_B);
-    gpio_set_dir(BUTTON_B, GPIO_IN);
-    gpio_pull_up(BUTTON_B);
-
-    gpio_init(BUTTON_JOYSTICK);
-    gpio_set_dir(BUTTON_JOYSTICK, GPIO_IN);
-    gpio_pull_up(BUTTON_JOYSTICK);
-
-    gpio_init(LED_RED);
-    gpio_set_dir(LED_RED, GPIO_OUT);
-    gpio_put(LED_RED, 0);
-
-    gpio_init(LED_GREEN);
-    gpio_set_dir(LED_GREEN, GPIO_OUT);
-    gpio_put(LED_GREEN, 0);
-
-    gpio_init(LED_BLUE);
-    gpio_set_dir(LED_BLUE, GPIO_OUT);
-    gpio_put(LED_BLUE, 1);
-
-    display_init();
-
-    gpio_set_irq_enabled_with_callback(BUTTON_A, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
-    gpio_set_irq_enabled(BUTTON_B, GPIO_IRQ_EDGE_FALL, true);
-    gpio_set_irq_enabled(BUTTON_JOYSTICK, GPIO_IRQ_EDGE_FALL, true);
-
-    xSemContador = xSemaphoreCreateCounting(MAX_PEOPLE, 0);
-    xSemReset = xSemaphoreCreateBinary();
-    xMutexDisplay = xSemaphoreCreateMutex();
-
-    xTaskCreate(vTaskEntrada, "Task Entrada", 256, NULL, 1, NULL);
-    xTaskCreate(vTaskSaida, "Task Saida", 256, NULL, 1, NULL);
-    xTaskCreate(vTaskReset, "Task Reset", 256, NULL, 1, NULL);
-    vTaskStartScheduler();
-    panic_unsupported();
-
 }
